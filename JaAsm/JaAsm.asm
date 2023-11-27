@@ -1,10 +1,9 @@
-.code
-mmx proc
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pand xmm0,xmm1
-    movdqu [r8], xmm0
-    ret
-mmx endp
+.code 
+MyProc1 proc
 
+mov RAX,255	
+sub RAX,RCX
+ret
+
+MyProc1 endp
 end

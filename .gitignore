@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+*.filters
+*.vcxproj
+CSharp/Properties/launchSettings.json
+CSharp/Resources/test_img.png
+JaProj/Properties/launchSettings.json
