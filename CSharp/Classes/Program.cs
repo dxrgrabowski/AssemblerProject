@@ -13,11 +13,11 @@ namespace AssemblerProject
         [STAThread]
         static void Main()
         {
-            Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.SetCompatibleTextRenderingDefault(false);
-            Switcher controller = new Switcher();
-            Application.Run(controller.mainMenu);
+            Switcher switcher = new Switcher();
+            Application.Run(switcher.mainMenu);
         }
     }
 }
