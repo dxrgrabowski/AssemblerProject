@@ -10,184 +10,283 @@
 #include <algorithm>
 #include <numeric>
 
-int CalculateMean(const std::vector<int>& pixels) {
-    int sum = 0;
-    for (int pixel : pixels) {
-        sum += pixel;
+#include "../../../../Downloads/Image.h"
+
+
+int bayerMatrix[4][4] = {
+    { 0,  8,  2, 10},
+    {12,  4, 14,  6},
+    { 3, 11,  1,  9},
+    {15,  7, 13,  5}
+};
+unsigned char ditheringFilter[4] = { 6, 3, 5, 2 };
+
+int** generateBayerMatrix(int size) {
+    int** bayerMatrix = new int* [size];
+    for (int i = 0; i < size; ++i) {
+        bayerMatrix[i] = new int[size];
     }
-    return sum / pixels.size();
+
+    int level = 1;
+    int subSize = size;
+    while (subSize > 1) {
+        subSize /= 2;
+        int halfLevel = level / 2;
+        for (int i = 0; i < level; ++i) {
+            for (int j = 0; j < level; ++j) {
+                bayerMatrix[i][j] = ((bayerMatrix[i % subSize][j % subSize] * 4) + ((i / subSize) * 2) + (j / subSize)) % (level * level);
+            }
+        }
+        level *= 2;
+    }
+
+    return bayerMatrix;
 }
 
-// Funkcja pomocnicza do przetwarzania obszaru obrazu za pomoc¹ filtru Kuwahara
-void ProcessRegion(const unsigned char* inputImage, unsigned char* outputImage, int width, int height, int x, int y) {
-    const int filterSize = 3;
-    const int halfFilterSize = filterSize / 2;
-
-    std::vector<int> means[3];
-
-    for (int c = 0; c < 3; ++c) {
-        means[c].resize(filterSize, 0);
+// Function to free memory allocated for the Bayer matrix
+void freeBayerMatrix(int** bayerMatrix, int size) {
+    for (int i = 0; i < size; ++i) {
+        delete[] bayerMatrix[i];
     }
+    delete[] bayerMatrix;
+}
 
-    for (int i = -halfFilterSize; i <= halfFilterSize; ++i) {
-        for (int j = -halfFilterSize; j <= halfFilterSize; ++j) {
-            for (int c = 0; c < 3; ++c) {
-                int px = x + j;
-                int py = y + i;
 
-                // Check if the pixel coordinates are within the bounds of the image
-                if (px >= 0 && px < width && py >= 0 && py < height) {
-                    int index = (py * width + px) * 3 + c;
-                    int pixel = inputImage[index];
-                    means[c][i + halfFilterSize] += pixel;
+
+// Function to perform ordered error dispersion dithering
+extern "C" __declspec(dllexport) void orderedErrorDispersion(unsigned char* inputImage, unsigned char* outputImage, int width, int height, int numThreads) {
+    // Define the Bayer matrix size (change this value for different matrix sizes)
+    int bayerSize = 4;
+
+    // Generate the Bayer matrix dynamically
+    int** bayerMatrix = generateBayerMatrix(bayerSize);
+
+    // Bayer dithering
+    //for (int y = 0; y < height; ++y) {
+    //    for (int x = 0; x < width; ++x) {
+    //        int index = y * width + x;
+    //        int threshold = (bayerMatrix[y % bayerSize][x % bayerSize] * 255) / (bayerSize * bayerSize - 1);
+
+    //        // Calculate the new pixel value based on the threshold and the error diffusion
+    //        int newValue = (inputImage[index] + threshold <= 255) ? 0 : 255;
+    //        int error = inputImage[index] - newValue;
+    //        inputImage[index] = static_cast<unsigned char>(newValue);
+
+    //        // Distribute the error to neighboring pixels
+    //        if (x < width - 1) inputImage[index + 1] += (error) / 16;
+    //        if (x > 0 && y < height - 1) inputImage[index + width - 1] += (error) / 16;
+    //        if (y < height - 1) inputImage[index + width] += (error) / 16;
+    //        if (x < width - 1 && y < height - 1) inputImage[index + width + 1] += (error) / 16;
+    //    }
+    //}
+
+    //for (int y = 0; y < height; y++)
+    //{
+    //    for (int x = 0; x < width; x++)
+    //    {
+    //        if (x - 1 >= 0 && y + 1 < height && x + 1 < width)
+    //        {
+    //            unsigned char oldPixel[3];
+    //            unsigned char newPixel = 0xFF;
+    //            unsigned char others[4][3];
+    //            unsigned char otherValues[4];
+    //            char error = 0x00;
+    //            //unsigned float accumulatedValue = 0f;
+
+    //            if (x + 1 < width && y < height) {
+    //                others[0][0] = inputImage[((y)*width + (x + 1)) * 3];
+    //                others[0][1] = inputImage[((y)*width + (x + 1)) * 3 + 1];
+    //                others[0][2] = inputImage[((y)*width + (x + 1)) * 3 + 2];
+    //            }
+
+    //            if (x - 1 >= 0 && y + 1 < height) {
+    //                others[1][0] = inputImage[((y + 1) * width + (x - 1)) * 3];
+    //                others[1][1] = inputImage[((y + 1) * width + (x - 1)) * 3 + 1];
+    //                others[1][2] = inputImage[((y + 1) * width + (x - 1)) * 3 + 2];
+    //            }
+
+    //            if (x < width && y + 1 < height) {
+    //                others[2][0] = inputImage[((y + 1) * width + x) * 3];
+    //                others[2][1] = inputImage[((y + 1) * width + x) * 3 + 1];
+    //                others[2][2] = inputImage[((y + 1) * width + x) * 3 + 2];
+    //            }
+
+    //            if (x + 1 < width && y + 1 < height) {
+    //                others[3][0] = inputImage[((y + 1) * width + (x + 1)) * 3];
+    //                others[3][1] = inputImage[((y + 1) * width + (x + 1)) * 3 + 1];
+    //                others[3][2] = inputImage[((y + 1) * width + (x + 1)) * 3 + 2];
+    //            }
+
+    //            if (oldPixel[0] < 0x80)
+    //                newPixel = 0x00;
+
+    //            outputImage[(y * width + x) * 3] = newPixel;
+    //            outputImage[(y * width + x) * 3 + 1] = newPixel;
+    //            outputImage[(y * width + x) * 3 + 2] = newPixel;
+
+    //            error = oldPixel[0] - newPixel;
+
+    //            for (int i = 0; i < sizeof(ditheringFilter) / sizeof(unsigned char); i++)
+    //            {
+    //                for (int c = 0; c < 3; c++) {
+    //                    otherValues[i] = others[i][c] + error * ditheringFilter[i] * 0.0625;
+    //                    if (otherValues[i] < 0)
+    //                        otherValues[i] = 0;
+    //                    if (otherValues[i] > 255)
+    //                        otherValues[i] = 255;
+    //                    outputImage[((y + 1) * width + (x + 1)) * 3 + c] = otherValues[i];
+    //                }
+    //            }
+    //        }
+    //    }
+    //}
+
+    // Free the allocated Bayer matrix memory
+    //freeBayerMatrix(bayerMatrix, bayerSize);
+}
+
+void floydSteinbergDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height)
+{
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            if (x - 1 >= 0 && y + 1 < height && x + 1 < width)
+            {
+                unsigned char oldPixel[3];
+                unsigned char newPixel = 0xFF;
+                unsigned char others[4][3];
+                unsigned char otherValues[4];
+                char error = 0x00;
+
+                oldPixel[0] = inputImage[y * width + x + 0];
+                oldPixel[1] = inputImage[y * width + x + 1];
+                oldPixel[2] = inputImage[y * width + x + 2];
+
+                others[0][0] = inputImage[y * width + x + 1];
+                others[0][1] = inputImage[y * width + x + 2];
+                others[0][2] = inputImage[y * width + x + 3];
+
+                others[1][0] = inputImage[y * width + x - 1];
+                others[1][1] = inputImage[y * width + x + 0];
+                others[1][2] = inputImage[y * width + x + 1];
+
+                others[2][0] = inputImage[(y + 1) * width + x];
+                others[2][1] = inputImage[(y + 1) * width + x];
+                others[2][2] = inputImage[(y + 1) * width + x];
+
+                others[3][0] = inputImage[(y + 1) * width + x + 1];
+                others[3][1] = inputImage[(y + 1) * width + x + 2];
+                others[3][2] = inputImage[(y + 1) * width + x + 3];
+
+                if (oldPixel[0] < 0x80)
+                    newPixel = 0x00;
+
+                error = oldPixel[0] - newPixel;
+                outputImage[y * width + x + 0] = newPixel;
+                outputImage[y * width + x + 1] = newPixel;
+                outputImage[y * width + x + 2] = newPixel;
+
+                for (int i = 0; i < sizeof(ditheringFilter) / sizeof(unsigned char); i++)
+                {
+                    otherValues[i] = others[i][0] + error * ditheringFilter[i] * 0.0625;
                 }
+
+                outputImage[y * width + x + 1] = otherValues[0];
+                outputImage[y * width + x + 2] = otherValues[0];
+                outputImage[y * width + x + 3] = otherValues[0];
+
+            	outputImage[(y + 1) * width + x - 1] = otherValues[1];
+                outputImage[(y + 1) * width + x + 0] = otherValues[1];
+                outputImage[(y + 1) * width + x + 1] = otherValues[1];
+
+                outputImage[(y + 1) * width + x + 0] = otherValues[2];
+                outputImage[(y + 1) * width + x + 1] = otherValues[2];
+                outputImage[(y + 1) * width + x + 2] = otherValues[2];
+
+            	outputImage[(y + 1) * width + x + 1] = otherValues[3];
+                outputImage[(y + 1) * width + x + 2] = otherValues[3];
+                outputImage[(y + 1) * width + x + 3] = otherValues[3];
             }
         }
     }
-
-    for (int c = 0; c < 3; ++c) {
-        means[c][0] = CalculateMean(means[c]);
-    }
-
-    int minVariance = INT_MAX;
-    int selectedMean[3];
-
-    for (int i = 0; i < filterSize; ++i) {
-        int variance[3] = { 0, 0, 0 };
-        for (int j = 0; j < filterSize; ++j) {
-            for (int c = 0; c < 3; ++c) {
-                int px = x - halfFilterSize + j;
-                int py = y - halfFilterSize + i;
-
-                // Check if the pixel coordinates are within the bounds of the image
-                if (px >= 0 && px < width && py >= 0 && py < height) {
-                    int index = (py * width + px) * 3 + c;
-                    int pixel = inputImage[index];
-                    int diff = pixel - means[c][i];
-                    variance[c] += diff * diff;
-                }
-            }
-        }
-
-        int totalVariance = variance[0] + variance[1] + variance[2];
-        if (totalVariance < minVariance) {
-            minVariance = totalVariance;
-            selectedMean[0] = means[0][i];
-            selectedMean[1] = means[1][i];
-            selectedMean[2] = means[2][i];
-        }
-    }
-
-    for (int c = 0; c < 3; ++c) {
-        int index = (y * width + x) * 3 + c;
-        outputImage[index] = selectedMean[c];
-    }
 }
 
-// Funkcja przetwarzaj¹ca obraz za pomoc¹ filtru Kuwahara z wielow¹tkowoœci¹
-void ApplyKuwaharaFilter(const unsigned char* inputImage, unsigned char* outputImage, int width, int height, int numThreads) {
-    const int filterSize = 3;
-    const int halfFilterSize = filterSize / 2;
-
-    std::vector<std::thread> threads;
-
-    for (int t = 0; t < numThreads; ++t) {
-        int startY = t * height / numThreads;
-        int endY = (t + 1) * height / numThreads;
-
-        threads.emplace_back([&inputImage, &outputImage, width, height](int startY, int endY) {
-            for (int y = startY + halfFilterSize; y < endY - halfFilterSize; ++y) {
-                for (int x = halfFilterSize; x < width - halfFilterSize; ++x) {
-                    ProcessRegion(inputImage, outputImage, width, height, x, y);
-                }
-            }
-            }, startY, endY);
-    }
-
-    for (auto& thread : threads) {
-        thread.join();
-    }
-}
-
-extern "C" __declspec(dllexport) unsigned char* KuwaharaFilter(const unsigned char* inputImage, int width, int height, int numThreads) {
-    unsigned char* outputImage = new unsigned char[width * height * 3];
-    ApplyKuwaharaFilter(inputImage, outputImage, width, height, numThreads);
-    return outputImage;
-}
-
-
-void SetPixelValue(unsigned char* imageData, int width, int x, int y, unsigned char value) {
-    imageData[y * width + x] = value;
-}
-
-unsigned char GetPixelValue(const unsigned char* imageData, int width, int x, int y) {
-    return imageData[y * width + x];
-}
-
-// Funkcja pomocnicza: Obliczanie rozmycia Gaussa dla danego piksela
-unsigned char GaussianBlur(const unsigned char* imageData, int width, int height, int x, int y) {
-    float kernel[3][3] = { {1.0f, 2.0f, 1.0f},
-                          {2.0f, 4.0f, 2.0f},
-                          {1.0f, 2.0f, 1.0f} };
-    float sum = 0.0f;
-    float totalWeight = 16.0f; // Suma wag kernela
-
-    for (int i = -1; i <= 1; ++i) {
-        for (int j = -1; j <= 1; ++j) {
-            int newX = x + i;
-            int newY = y + j;
-
-            // Sprawdzenie granic obrazu
-            if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
-                unsigned char pixelValue = GetPixelValue(imageData, width, newX, newY);
-                float weight = kernel[i + 1][j + 1];
-                sum += weight * static_cast<float>(pixelValue);
-            }
-            else {
-                totalWeight -= kernel[i + 1][j + 1];
-            }
-        }
-    }
-
-    return static_cast<unsigned char>(sum / totalWeight);
-}
-
-extern "C" __declspec(dllexport)
-unsigned char* KuwaharaFilter2(const unsigned char* inputImage, int width, int height) {
-    unsigned char* outputImage = new unsigned char[width * height];
-
-    // Pêtle przechodz¹ce przez wszystkie piksele obrazu
+void burkesDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height)
+{
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            unsigned char minVariance = UCHAR_MAX;
-            unsigned char average[4] = { 0 };
+            int index = y * width + x;
+            int oldPixel = inputImage[index];
+            int newPixel = (oldPixel < 128) ? 0 : 255; // Thresholding
 
-            // Obliczanie wartoœci dla ka¿dego z czterech kwadratów Kuwahara
-            for (int i = 0; i < 2; ++i) {
-                for (int j = 0; j < 2; ++j) {
-                    unsigned char val1 = GaussianBlur(inputImage, width, height, x + i, y + j);
-                    unsigned char val2 = GaussianBlur(inputImage, width, height, x + i + 1, y + j);
-                    unsigned char val3 = GaussianBlur(inputImage, width, height, x + i, y + j + 1);
-                    unsigned char val4 = GaussianBlur(inputImage, width, height, x + i + 1, y + j + 1);
+            outputImage[index] = newPixel;
 
-                    average[i * 2 + j] = (val1 + val2 + val3 + val4) / 4;
-                }
+            int error = oldPixel - newPixel;
+
+            // Diffusion of error to neighboring pixels
+            if (x < width - 1) {
+                inputImage[index + 1] += (int)((8.0 / 32.0) * error);
             }
-
-            // Obliczanie wariancji dla ka¿dego kwadratu
-            for (int i = 0; i < 4; ++i) {
-                unsigned char variance = 0;
-                for (int j = 0; j < 4; ++j) {
-                    variance += (average[i] - average[j]) * (average[i] - average[j]);
-                }
-                if (variance < minVariance) {
-                    minVariance = variance;
-                    SetPixelValue(outputImage, width, x, y, average[i]);
-                }
+            if (x < width - 2) {
+                inputImage[index + 2] += (int)((4.0 / 32.0) * error);
+            }
+            if (x > 1 && y < height - 1) {
+                inputImage[index + width - 2] += (int)((2.0 / 32.0) * error);
+            }
+            if (x > 0 && y < height - 1) {
+                inputImage[index + width - 1] += (int)((4.0 / 32.0) * error);
+            }
+            if (y < height - 1) {
+                inputImage[index + width] += (int)((8.0 / 32.0) * error);
+            }
+            if (x < width - 1 && y < height - 1) {
+                inputImage[index + width + 1] += (int)((4.0 / 32.0) * error);
+            }
+            if (x < width - 2 && y < height - 1) {
+                inputImage[index + width + 2] += (int)((2.0 / 32.0) * error);
             }
         }
     }
-
-    return outputImage;
 }
 
+void bayerDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height) {
+    // Iterate through the image pixels
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int index = y * width + x;
+            int oldPixel = inputImage[index];
+
+            // Mapowanie piksela do wartoœci progu z macierzy Bayer'a
+            int threshold = (bayerMatrix[x % 4][y % 4] * 255) / 16;
+
+            int newPixel = (oldPixel < threshold) ? 0 : 255; // Thresholding
+
+            outputImage[index] = newPixel;
+
+            int error = oldPixel - newPixel;
+
+            // Diffusion of error to neighboring pixels
+            if (x < width - 1) {
+                inputImage[index + 1] += (int)((7.0 / 16.0) * error);
+            }
+            if (x > 0 && y < height - 1) {
+                inputImage[index + width - 1] += (int)((3.0 / 16.0) * error);
+            }
+            if (y < height - 1) {
+                inputImage[index + width] += (int)((5.0 / 16.0) * error);
+            }
+            if (x < width - 1 && y < height - 1) {
+                inputImage[index + width + 1] += (int)((1.0 / 16.0) * error);
+            }
+        }
+    }
+}
+
+extern "C" __declspec(dllexport) void performFloydSteinbergDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height, int numThreads)
+{
+   // Image input(inputImage, width, height);
+
+    burkesDithering(inputImage, outputImage, width, height);
+
+}

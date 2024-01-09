@@ -13,10 +13,9 @@ namespace AssemblerProject
         [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JAAsm.dll")]
         static extern void MyProc1(byte oneChannel);
         [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll")]
-        static extern IntPtr KuwaharaFilter(IntPtr inputImage, int width, int height, int numThreads);
-
+        static extern void orderedErrorDispersion(IntPtr inputImage, IntPtr outputImage, int width, int height, int numThreads);
         [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll")]
-        static extern IntPtr KuwaharaFilter2(IntPtr inputImage, int width, int height);
+        static extern void performFloydSteinbergDithering(IntPtr inputImage, IntPtr outputImage, int width, int height, int numThreads);
 
         public TimeSpan currentExecutionTime { get; private set; }
         public TimeSpan previousExecutionTime { get; private set; }
@@ -37,7 +36,7 @@ namespace AssemblerProject
         {
             bitmapSize = bitmap.Width * bitmap.Height * 3;
             this.numberOfThreads = numberOfThreads;
-            loadedBitmap = bitmap;//ConvertToGrayscaleFast(bitmap);
+            loadedBitmap = bitmap;// ConvertToGrayscaleFast(bitmap);
         }
 
         public Bitmap startProcessingImage(DllType dllType)
@@ -50,7 +49,7 @@ namespace AssemblerProject
             {
                 case DllType.CPP:
                     stopwatch.Start();
-                    ProcessUsingCpp(loadedBitmap);
+                    ProcessUsingCpp(loadedBitmap, result);
                     stopwatch.Stop();
                     break;
                 case DllType.ASM:
@@ -84,23 +83,27 @@ namespace AssemblerProject
                 previousExecutionTime = currentExecutionTime;
             currentExecutionTime = stopwatch.Elapsed;
 
-            return loadedBitmap;
+            return result;
         }
 
-        private void ProcessUsingCpp(Bitmap inputBitmap)
+        private void ProcessUsingCpp(Bitmap inputBitmap, Bitmap outputBitmap)
         {
             BitmapData inputData = inputBitmap.LockBits(new Rectangle(0, 0, inputBitmap.Width, inputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+            
+            BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
             unsafe
             {
                 IntPtr inputPtr = inputData.Scan0;
+                IntPtr outputPtr = outputData.Scan0;
 
-                IntPtr resultPtr = KuwaharaFilter2(inputPtr, inputBitmap.Width, inputBitmap.Height);
+                performFloydSteinbergDithering(inputPtr, outputPtr, inputBitmap.Width, inputBitmap.Height, numberOfThreads);
 
-                Buffer.MemoryCopy((void*)resultPtr, (void*)inputPtr, inputData.Stride * inputBitmap.Height, inputData.Stride * inputBitmap.Height);
+                //Buffer.MemoryCopy((void*)resultPtr, (void*)inputPtr, inputData.Stride * inputBitmap.Height, inputData.Stride * inputBitmap.Height);
             }
 
             inputBitmap.UnlockBits(inputData);
+            outputBitmap.UnlockBits(outputData);
         }
 
 
