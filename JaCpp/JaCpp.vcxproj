@@ -154,13 +154,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\Downloads\Image.h" />
     <ClInclude Include="Filter.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\Downloads\Image.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Filter.cpp" />
     <ClCompile Include="pch.cpp">

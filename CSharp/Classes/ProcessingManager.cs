@@ -4,6 +4,8 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Threading.Tasks;
+using System.Threading;
+using System.Collections.Generic;
 
 namespace AssemblerProject
 {  
@@ -11,14 +13,16 @@ namespace AssemblerProject
     public class ProcessingManager
     {
         [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JAAsm.dll")]
-        static extern void MyProc1(byte oneChannel);
-        [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll")]
-        static extern void orderedErrorDispersion(IntPtr inputImage, IntPtr outputImage, int width, int height, int numThreads);
-        [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll")]
-        static extern void performFloydSteinbergDithering(IntPtr inputImage, IntPtr outputImage, int width, int height, int numThreads);
+        static extern void burkesDitheringAsm(IntPtr inputImage, IntPtr outputImage, int width, int height, int startRow, int endRow);
 
-        public TimeSpan currentExecutionTime { get; private set; }
-        public TimeSpan previousExecutionTime { get; private set; }
+        [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll")]
+        static extern void burkesDitheringCpp(IntPtr inputImage, IntPtr outputImage, int width, int height, int startRow, int endRow);
+
+        private TimeSpan currentExecutionTime;
+        private TimeSpan previousExecutionTime;
+        public double currentExecutionMs { get; private set; }
+        public double previousExecutionMs { get; private set; }
+
         Stopwatch stopwatch;
         public Bitmap loadedBitmap { get; private set; }
 
@@ -27,8 +31,8 @@ namespace AssemblerProject
 
         public ProcessingManager()
         {
-            currentExecutionTime = TimeSpan.Zero;
-            previousExecutionTime = TimeSpan.Zero;
+            currentExecutionMs = 0;
+            previousExecutionMs = 0;
             stopwatch = new Stopwatch();
             loadedBitmap = null;
         }
@@ -41,7 +45,7 @@ namespace AssemblerProject
 
         public Bitmap startProcessingImage(DllType dllType)
         {
-            if (loadedBitmap == null /*|| loadedBitmapArray == null*/) return null;
+            if (loadedBitmap == null) return null;
             Bitmap result = new Bitmap(loadedBitmap.Width, loadedBitmap.Height);
             stopwatch.Reset();
 
@@ -54,34 +58,15 @@ namespace AssemblerProject
                     break;
                 case DllType.ASM:
                     stopwatch.Start();
-                    //resultPtr = Marshal.AllocHGlobal(bitmapSize);
-
-                    //for (int y = 0; y < loadedBitmap.Height; y++)
-                    //{
-                    //    for (int x = 0; x < loadedBitmap.Width; x++)
-                    //    {
-                    //        int pixelOffset = (y * loadedBitmap.Width + x) * 3;  
-
-                    //        byte blueChannel = Marshal.ReadByte(IntPtr.Add(unmanagedPointer, pixelOffset + 2));
-
-                    //        MyProc1(blueChannel);
-
-                    //        Marshal.WriteByte(IntPtr.Add(resultPtr, pixelOffset + 2), blueChannel);
-                    //    }
-                    //}
-
-                    //stopwatch.Stop();
-
-                    //Marshal.Copy(resultPtr, resultArray, 0, resultArray.Length);
-                    //Marshal.FreeHGlobal(unmanagedPointer);
-                    //Marshal.FreeHGlobal(resultPtr);
-                    //result = CreateBitmapFromArray(resultArray, loadedBitmap.Width, loadedBitmap.Height);
-
+                    ProcessUsingAsm(loadedBitmap, result);
+                    stopwatch.Stop();
                     break;
             }
-            if (currentExecutionTime != TimeSpan.Zero)
-                previousExecutionTime = currentExecutionTime;
-            currentExecutionTime = stopwatch.Elapsed;
+           
+            if (currentExecutionMs != 0)
+                previousExecutionMs = currentExecutionMs;
+
+            currentExecutionMs = stopwatch.Elapsed.TotalMilliseconds;
 
             return result;
         }
@@ -92,15 +77,75 @@ namespace AssemblerProject
             
             BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
+            int stride = inputData.Stride;
+            int height = inputBitmap.Height;
+            int width = inputBitmap.Width;
+
+            // Calculate the number of rows each thread will process
+            int rowsPerThread = height / numberOfThreads;
+
+            // Create an array to hold threads
+            List<Task> tasks = new List<Task>();
+
+            IntPtr inputPtr, outputPtr;
+
             unsafe
             {
-                IntPtr inputPtr = inputData.Scan0;
-                IntPtr outputPtr = outputData.Scan0;
-
-                performFloydSteinbergDithering(inputPtr, outputPtr, inputBitmap.Width, inputBitmap.Height, numberOfThreads);
-
-                //Buffer.MemoryCopy((void*)resultPtr, (void*)inputPtr, inputData.Stride * inputBitmap.Height, inputData.Stride * inputBitmap.Height);
+                inputPtr = inputData.Scan0;
+                outputPtr = outputData.Scan0;
             }
+
+            for (int i = 0; i < numberOfThreads; i++)
+            {
+                int startRow = i * rowsPerThread;
+                int endRow = (i == numberOfThreads - 1) ? height : (i + 1) * rowsPerThread;
+
+                tasks.Add(Task.Run(() =>
+                {
+                    burkesDithering(inputPtr, outputPtr, stride, width, startRow, endRow);
+                }));
+            }
+
+            Task.WaitAll(tasks.ToArray());
+
+            inputBitmap.UnlockBits(inputData);
+            outputBitmap.UnlockBits(outputData);
+        }
+        
+        private void ProcessUsingAsm(Bitmap inputBitmap, Bitmap outputBitmap)
+        {
+            BitmapData inputData = inputBitmap.LockBits(new Rectangle(0, 0, inputBitmap.Width, inputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+            
+            BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+
+            int stride = inputData.Stride;
+            int height = inputBitmap.Height;
+            int width = inputBitmap.Width;
+
+            int rowsPerThread = height / numberOfThreads;
+
+            List<Task> tasks = new();
+
+            IntPtr inputPtr, outputPtr;
+
+            unsafe
+            {
+                inputPtr = inputData.Scan0;
+                outputPtr = outputData.Scan0;
+            }
+
+            for (int i = 0; i < numberOfThreads; i++)
+            {
+                int startRow = i * rowsPerThread;
+                int endRow = (i == numberOfThreads - 1) ? height : (i + 1) * rowsPerThread;
+
+                tasks.Add(Task.Run(() =>
+                {
+                    //MyProc1(inputPtr, outputPtr, stride, width, startRow, endRow);
+                }));
+            }
+
+            Task.WaitAll(tasks.ToArray());
 
             inputBitmap.UnlockBits(inputData);
             outputBitmap.UnlockBits(outputData);
