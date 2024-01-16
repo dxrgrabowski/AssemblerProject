@@ -102,7 +102,7 @@ namespace AssemblerProject
 
                 tasks.Add(Task.Run(() =>
                 {
-                    burkesDithering(inputPtr, outputPtr, stride, width, startRow, endRow);
+                    burkesDitheringCpp(inputPtr, outputPtr, stride, width, startRow, endRow);
                 }));
             }
 

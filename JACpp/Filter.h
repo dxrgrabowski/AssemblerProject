@@ -1,52 +1,17 @@
 #pragma once
 #include "pch.h"
 
+#include <iostream>
 #include <vector>
+
+#include <iostream>
+#include <vector>
+#include <thread>
+#include <algorithm>
 #include <numeric>
 
-extern "C" __declspec(dllexport) void burkesDitheringCpp(
-    unsigned char* input_image, 
-    unsigned char* output_image, 
-    const int width, 
-    const int height, 
-    const int start_row, 
-    const int end_row)
-{
-    for (int y = start_row; y < end_row; ++y) {
-        for (int x = 0; x < width; ++x) {
-	        const int index = y * width + x;
-	        const int oldPixel = input_image[index];
-	        const int newPixel = (oldPixel < 128) ? 0 : 255; // Thresholding
+#include "../../../../Downloads/Image.h"
 
-            output_image[index] = newPixel;
-
-	        const int error = oldPixel - newPixel;
-
-            // Diffusion of error to neighboring pixels
-            if (x < width - 1) {
-                input_image[index + 1] += (int)((8.0 / 32.0) * error);
-            }
-            if (x < width - 2) {
-                input_image[index + 2] += (int)((4.0 / 32.0) * error);
-            }
-            if (x > 1 && y < height - 1) {
-                input_image[index + width - 2] += (int)((2.0 / 32.0) * error);
-            }
-            if (x > 0 && y < height - 1) {
-                input_image[index + width - 1] += (int)((4.0 / 32.0) * error);
-            }
-            if (y < height - 1) {
-                input_image[index + width] += (int)((8.0 / 32.0) * error);
-            }
-            if (x < width - 1 && y < height - 1) {
-                input_image[index + width + 1] += (int)((4.0 / 32.0) * error);
-            }
-            if (x < width - 2 && y < height - 1) {
-                input_image[index + width + 2] += (int)((2.0 / 32.0) * error);
-            }
-        }
-    }
-}
 
 int bayerMatrix[4][4] = {
     { 0,  8,  2, 10},
@@ -54,7 +19,6 @@ int bayerMatrix[4][4] = {
     { 3, 11,  1,  9},
     {15,  7, 13,  5}
 };
-
 unsigned char ditheringFilter[4] = { 6, 3, 5, 2 };
 
 int** generateBayerMatrix(int size) {
@@ -248,7 +212,43 @@ void floydSteinbergDithering(unsigned char* inputImage, unsigned char* outputIma
     }
 }
 
+extern "C" __declspec(dllexport) void burkesDitheringCpp(unsigned char* inputImage, unsigned char* outputImage, int width, int height, int startRow, int endRow)
+{
+    for (int y = startRow; y < endRow; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int index = y * width + x;
+            int oldPixel = inputImage[index];
+            int newPixel = (oldPixel < 128) ? 0 : 255; // Thresholding
 
+            outputImage[index] = newPixel;
+
+            int error = oldPixel - newPixel;
+
+            // Diffusion of error to neighboring pixels
+            if (x < width - 1) {
+                inputImage[index + 1] += (int)((8.0 / 32.0) * error);
+            }
+            if (x < width - 2) {
+                inputImage[index + 2] += (int)((4.0 / 32.0) * error);
+            }
+            if (x > 1 && y < height - 1) {
+                inputImage[index + width - 2] += (int)((2.0 / 32.0) * error);
+            }
+            if (x > 0 && y < height - 1) {
+                inputImage[index + width - 1] += (int)((4.0 / 32.0) * error);
+            }
+            if (y < height - 1) {
+                inputImage[index + width] += (int)((8.0 / 32.0) * error);
+            }
+            if (x < width - 1 && y < height - 1) {
+                inputImage[index + width + 1] += (int)((4.0 / 32.0) * error);
+            }
+            if (x < width - 2 && y < height - 1) {
+                inputImage[index + width + 2] += (int)((2.0 / 32.0) * error);
+            }
+        }
+    }
+}
 
 void bayerDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height) {
     // Iterate through the image pixels
