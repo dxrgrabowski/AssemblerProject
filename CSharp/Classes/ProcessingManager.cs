@@ -40,7 +40,7 @@ namespace AssemblerProject
         {
             bitmapSize = bitmap.Width * bitmap.Height * 3;
             this.numberOfThreads = numberOfThreads;
-            loadedBitmap = bitmap;// ConvertToGrayscaleFast(bitmap);
+            loadedBitmap = new Bitmap(bitmap);// ConvertToGrayscaleFast(bitmap);
         }
 
         public Bitmap startProcessingImage(DllType dllType)
@@ -73,7 +73,7 @@ namespace AssemblerProject
 
         private void ProcessUsingCpp(Bitmap inputBitmap, Bitmap outputBitmap)
         {
-            BitmapData inputData = inputBitmap.LockBits(new Rectangle(0, 0, inputBitmap.Width, inputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+            BitmapData inputData = inputBitmap.LockBits(new Rectangle(0, 0, inputBitmap.Width, inputBitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format8bppIndexed);
             
             BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
