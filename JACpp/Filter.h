@@ -212,7 +212,7 @@ void floydSteinbergDithering(unsigned char* inputImage, unsigned char* outputIma
     }
 }
 
-extern "C" __declspec(dllexport) void burkesDitheringCpp(unsigned char* inputImage, unsigned char* outputImage, int width, int height, int startRow, int endRow);
+extern "C" __declspec(dllexport) void burkesDitheringCpp(unsigned char* input_image, unsigned char* output_image, int width, int height, int start_row, int end_row);
 
 void bayerDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height) {
     // Iterate through the image pixels
