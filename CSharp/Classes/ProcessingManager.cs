@@ -77,7 +77,6 @@ namespace AssemblerProject
             
             BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
-            int stride = inputData.Stride;
             int height = inputBitmap.Height;
             int width = inputBitmap.Width;
 
@@ -102,7 +101,7 @@ namespace AssemblerProject
 
                 tasks.Add(Task.Run(() =>
                 {
-                    burkesDitheringCpp(inputPtr, outputPtr, stride, width, startRow, endRow);
+                    burkesDitheringCpp(inputPtr, outputPtr, width, height, startRow, endRow);
                 }));
             }
 
@@ -141,7 +140,7 @@ namespace AssemblerProject
 
                 tasks.Add(Task.Run(() =>
                 {
-                    //MyProc1(inputPtr, outputPtr, stride, width, startRow, endRow);
+                    burkesDitheringAsm(inputPtr, outputPtr, stride, width, startRow, endRow);
                 }));
             }
 

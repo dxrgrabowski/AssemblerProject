@@ -19,8 +19,8 @@ namespace AssemblerProject
         public Bitmap GetFunctionResult(Bitmap bitmap, DllType dllType, ref string executionTime, ref string previousExecutionTime)
         {
             Bitmap result = dataManager.startProcessingImage(dllType);
-            executionTime = dataManager.currentExecutionMs != 0 ? dataManager.currentExecutionMs.ToString() : "";
-            previousExecutionTime = dataManager.previousExecutionMs != 0 ? dataManager.previousExecutionMs.ToString() : "";
+            executionTime = dataManager.currentExecutionMs != 0 ? Math.Round(dataManager.currentExecutionMs).ToString() : "";
+            previousExecutionTime = dataManager.previousExecutionMs != 0 ? Math.Round(dataManager.previousExecutionMs).ToString() : "";
             return result;
         }
         
