@@ -23,6 +23,9 @@ extern "C" __declspec(dllexport) void burkesDitheringCpp(
             if (x < width - 1)
             {
                 input_image[index + 1] += static_cast<int>((8.0 / 32.0) * error);
+                // movss   xmm0, quarter                       ;
+                // mulss   xmm0, xmm1  ; Multiply error with 0.25
+                // cvttss2si ecx, xmm0 ; Convert float to int with xmm0 for further int calculations
             }
             if (x < width - 2) 
             {
