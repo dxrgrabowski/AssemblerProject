@@ -1,16 +1,16 @@
 #pragma once
 #include "pch.h"
 
-#include <iostream>
 #include <vector>
-
-#include <iostream>
-#include <vector>
-#include <thread>
-#include <algorithm>
 #include <numeric>
 
-#include "../../../../Downloads/Image.h"
+extern "C" __declspec(dllexport) void burkesDitheringCpp(
+    unsigned char* input_image,
+    unsigned char* output_image,
+    const int width,
+    const int height,
+    const int start_row,
+    const int end_row);
 
 
 int bayerMatrix[4][4] = {
@@ -211,8 +211,6 @@ void floydSteinbergDithering(unsigned char* inputImage, unsigned char* outputIma
         }
     }
 }
-
-extern "C" __declspec(dllexport) void burkesDitheringCpp(unsigned char* input_image, unsigned char* output_image, int width, int height, int start_row, int end_row);
 
 void bayerDithering(unsigned char* inputImage, unsigned char* outputImage, int width, int height) {
     // Iterate through the image pixels

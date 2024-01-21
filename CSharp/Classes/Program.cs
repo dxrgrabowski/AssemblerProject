@@ -16,8 +16,8 @@ namespace AssemblerProject
             Application.EnableVisualStyles();
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.SetCompatibleTextRenderingDefault(false);
-            Switcher switcher = new Switcher();
-            Application.Run(switcher.mainMenu);
+            Switcher controller = new Switcher();
+            Application.Run(controller.mainMenu);
         }
     }
 }

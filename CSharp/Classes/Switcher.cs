@@ -16,13 +16,6 @@ namespace AssemblerProject
             dataManager = new ProcessingManager();
             mainMenu = new MainMenu(this);
         }
-        public Bitmap GetFunctionResult(Bitmap bitmap, DllType dllType, ref string executionTime, ref string previousExecutionTime)
-        {
-            Bitmap result = dataManager.startProcessingImage(dllType);
-            executionTime = dataManager.currentExecutionMs != 0 ? Math.Round(dataManager.currentExecutionMs).ToString() : "";
-            previousExecutionTime = dataManager.previousExecutionMs != 0 ? Math.Round(dataManager.previousExecutionMs).ToString() : "";
-            return result;
-        }
         
     }
 }

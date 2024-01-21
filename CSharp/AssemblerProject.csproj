@@ -23,4 +23,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="..\JaAsm\JAAsm.asm" Link="JAAsm.asm" />
+  </ItemGroup>
+
 </Project>

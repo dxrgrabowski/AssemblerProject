@@ -29,6 +29,27 @@ namespace AssemblerProject
 
         private void uploadImageButton_Click(object sender, EventArgs e)
         {
+            try
+            {
+                OpenFileDialog dialog = new OpenFileDialog();
+                // dialog.Filter = "JPG files(*.jpg)|*.jpg;*png|PNG files(*.png)|*.png";
+                dialog.Filter = "Image files (*.jpg;*.png;*.bmp)|*.jpg;*.png;*.bmp";
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    Bitmap bitmap = new Bitmap(dialog.FileName);
+                    controller.dataManager.LoadBitmap(bitmap);
+                    baseImagePreview.Image = bitmap;
+                }
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Wrong file selected", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+        }
+
+        private async void filterImageButton_Click(object sender, EventArgs e)
+        {
             int numberOfThreads;
             try
             {
@@ -44,35 +65,17 @@ namespace AssemblerProject
                 MessageBox.Show("Enter a number of threads between 1 and 64", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            try
-            {
-                OpenFileDialog dialog = new OpenFileDialog();
-                // dialog.Filter = "JPG files(*.jpg)|*.jpg;*png|PNG files(*.png)|*.png";
-                dialog.Filter = "Image files (*.jpg;*.png;*.bmp)|*.jpg;*.png;*.bmp";
-                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                {
-                    Bitmap bitmap = new Bitmap(dialog.FileName);
-                    controller.dataManager.LoadBitmap(bitmap, numberOfThreads);
-                    baseImagePreview.Image = bitmap;
-                }
-            }
-            catch (Exception)
-            {
-                MessageBox.Show("Wrong file selected", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
 
-        }
-
-        private async void filterImageButton_Click(object sender, EventArgs e)
-        {
             if (controller.dataManager.loadedBitmap != null)
             {
                 DllType dllType = selectAsm.Checked ? DllType.ASM : selectCpp.Checked ? DllType.CPP : DllType.CPP;
                 string executionTime = "";
                 string previousExecutionTime = "";
 
-                resultImagePreview.Image = controller.GetFunctionResult(controller.dataManager.loadedBitmap,
-                    dllType, ref executionTime, ref previousExecutionTime);
+                resultImagePreview.Image = controller.dataManager.startProcessingImage(dllType, numberOfThreads);
+
+                executionTime = controller.dataManager.currentExecutionMs != 0 ? Math.Round(controller.dataManager.currentExecutionMs).ToString() : "";
+                previousExecutionTime = controller.dataManager.previousExecutionMs != 0 ? Math.Round(controller.dataManager.previousExecutionMs).ToString() : "";
 
                 currentExecutionTimeLabel.Text = $"Execution time: {executionTime}ms";
                 if (previousExecutionTime != "") previousExecutionTimeLabel.Text = $"Previous execution time: {previousExecutionTime}ms";

@@ -17,9 +17,6 @@ namespace AssemblerProject
 
         [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll")]
         static extern void burkesDitheringCpp(IntPtr inputImage, IntPtr outputImage, int width, int height, int startRow, int endRow);
-
-        private TimeSpan currentExecutionTime;
-        private TimeSpan previousExecutionTime;
         public double currentExecutionMs { get; private set; }
         public double previousExecutionMs { get; private set; }
 
@@ -27,7 +24,7 @@ namespace AssemblerProject
         public Bitmap loadedBitmap { get; private set; }
 
         int bitmapSize;
-        int numberOfThreads;
+        int numberOfSegments;
 
         public ProcessingManager()
         {
@@ -36,18 +33,19 @@ namespace AssemblerProject
             stopwatch = new Stopwatch();
             loadedBitmap = null;
         }
-        public void LoadBitmap(Bitmap bitmap, int numberOfThreads)
+        public void LoadBitmap(Bitmap bitmap)
         {
             bitmapSize = bitmap.Width * bitmap.Height * 3;
-            this.numberOfThreads = numberOfThreads;
             loadedBitmap = new Bitmap(bitmap);// ConvertToGrayscaleFast(bitmap);
         }
 
-        public Bitmap startProcessingImage(DllType dllType)
+        public Bitmap startProcessingImage(DllType dllType, int numberOfThreads)
         {
             if (loadedBitmap == null) return null;
             Bitmap result = new Bitmap(loadedBitmap.Width, loadedBitmap.Height);
             stopwatch.Reset();
+
+            numberOfSegments = numberOfThreads;
 
             switch (dllType)
             {
@@ -55,6 +53,7 @@ namespace AssemblerProject
                     stopwatch.Start();
                     ProcessUsingCpp(loadedBitmap, result);
                     stopwatch.Stop();
+                    System.Console.WriteLine("Cpp time: " + stopwatch.Elapsed.TotalMilliseconds);
                     break;
                 case DllType.ASM:
                     stopwatch.Start();
@@ -81,10 +80,10 @@ namespace AssemblerProject
             int width = inputBitmap.Width;
 
             // Calculate the number of rows each thread will process
-            int rowsPerThread = height / numberOfThreads;
+            int rowsPerThread = height / numberOfSegments;
 
             // Create an array to hold threads
-            List<Task> tasks = new List<Task>();
+            List<Task> tasks = new();
 
             IntPtr inputPtr, outputPtr;
 
@@ -94,10 +93,10 @@ namespace AssemblerProject
                 outputPtr = outputData.Scan0;
             }
 
-            for (int i = 0; i < numberOfThreads; i++)
+            for (int i = 0; i < numberOfSegments; i++)
             {
                 int startRow = i * rowsPerThread;
-                int endRow = (i == numberOfThreads - 1) ? height : (i + 1) * rowsPerThread;
+                int endRow = (i == numberOfSegments - 1) ? height : (i + 1) * rowsPerThread;
 
                 tasks.Add(Task.Run(() =>
                 {
@@ -117,11 +116,10 @@ namespace AssemblerProject
             
             BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
-            int stride = inputData.Stride;
             int height = inputBitmap.Height;
             int width = inputBitmap.Width;
 
-            int rowsPerThread = height / numberOfThreads;
+            int rowsPerThread = height / numberOfSegments;
 
             List<Task> tasks = new();
 
@@ -133,14 +131,14 @@ namespace AssemblerProject
                 outputPtr = outputData.Scan0;
             }
 
-            for (int i = 0; i < numberOfThreads; i++)
+            for (int i = 0; i < numberOfSegments; i++)
             {
                 int startRow = i * rowsPerThread;
-                int endRow = (i == numberOfThreads - 1) ? height : (i + 1) * rowsPerThread;
+                int endRow = (i == numberOfSegments - 1) ? height : (i + 1) * rowsPerThread;
 
                 tasks.Add(Task.Run(() =>
                 {
-                    burkesDitheringAsm(inputPtr, outputPtr, stride, width, startRow, endRow);
+                    burkesDitheringAsm(inputPtr, outputPtr, width, height, startRow, endRow);
                 }));
             }
 
@@ -153,9 +151,9 @@ namespace AssemblerProject
 
         public static Bitmap ConvertToGrayscaleFast(Bitmap original)
         {
-            Bitmap grayscale = new Bitmap(original.Width, original.Height);
+            Bitmap grayscale = new(original.Width, original.Height);
 
-            Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
+            Rectangle rect = new(0, 0, original.Width, original.Height);
             BitmapData originalData = original.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
             BitmapData grayscaleData = grayscale.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
 
