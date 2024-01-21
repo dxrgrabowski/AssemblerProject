@@ -20,25 +20,32 @@ extern "C" __declspec(dllexport) void burkesDitheringCpp(
         	output_image[index] = new_pixel;
 
             // Diffusion of error to neighboring pixels
-            if (x < width - 1) {
+            if (x < width - 1)
+            {
                 input_image[index + 1] += static_cast<int>((8.0 / 32.0) * error);
             }
-            if (x < width - 2) {
+            if (x < width - 2) 
+            {
                 input_image[index + 2] += static_cast<int>((4.0 / 32.0) * error);
             }
-            if (x > 1 && y < height - 1) {
+            if (x > 1 && y < height - 1) 
+            {
                 input_image[index + width - 2] += static_cast<int>((2.0 / 32.0) * error);
             }
-            if (x > 0 && y < height - 1) {
+            if (x > 0 && y < height - 1) 
+            {
                 input_image[index + width - 1] += static_cast<int>((4.0 / 32.0) * error);
             }
-            if (y < height - 1) {
+            if (y < height - 1) 
+            {
                 input_image[index + width] += static_cast<int>((8.0 / 32.0) * error);
             }
-            if (x < width - 1 && y < height - 1) {
+            if (x < width - 1 && y < height - 1) 
+            {
                 input_image[index + width + 1] += static_cast<int>((4.0 / 32.0) * error);
             }
-            if (x < width - 2 && y < height - 1) {
+            if (x < width - 2 && y < height - 1) 
+            {
                 input_image[index + width + 2] += static_cast<int>((2.0 / 32.0) * error);
             }
         }

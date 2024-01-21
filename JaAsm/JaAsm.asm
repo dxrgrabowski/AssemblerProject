@@ -3,40 +3,46 @@
   eighth DD 0.125      
   sixteenth DD 0.0625  
 
+
+;Init used vars to be pushed on stack, initialized at start with 0, backup for registers
 index$1 = 0
 x$2 = 4
 y$3 = 8
 error$4 = 12
-tv75 = 16
+tmp_pixel = 16  ;not used to remove
 old_pixel$5 = 20
 new_pixel$6 = 24
-input_image$ = 48
+input_image$ = 48 
 output_image$ = 56
 width$ = 64
 height$ = 72
 start_row$ = 80
 end_row$ = 88
 
+
 .code
 burkesDitheringAsm proc     
         ;Init stack frame
         mov     DWORD PTR [rsp+32], r9d 
-        mov     DWORD PTR [rsp+24], r8d
-        mov     QWORD PTR [rsp+16], rdx
-        mov     QWORD PTR [rsp+8], rcx
-        sub     rsp, 40                 ;allocate some stack for vars                        
-        mov     eax, DWORD PTR start_row$[rsp]
-        mov     DWORD PTR y$3[rsp], eax
-        jmp     $LN4@burkesDith
-OuterLoopStart:
-        mov     eax, DWORD PTR y$3[rsp] 		   ; y
+        mov     DWORD PTR new_pixel$6[rsp], r8d
+        mov     QWORD PTR tmp_pixel[rsp], rdx   ;not used to remove
+        mov     QWORD PTR y$3[rsp], rcx 
+        sub     rsp, 40                 ; Allocate stack for vars  
+        
+        mov     eax, DWORD PTR start_row$[rsp] ; Load the value at the memory location start_row$+rsp into eax
+        mov     DWORD PTR y$3[rsp], eax        ; Store the value from eax into the y$3 variable on the stack
+        jmp     OuterLoopStart 
+
+OuterLoopIncrement:                             ; Hack to increment y, but not in first iteration
+        mov     eax, DWORD PTR y$3[rsp] 	
         inc     eax
         mov     DWORD PTR y$3[rsp], eax
-$LN4@burkesDith:
-        mov     eax, DWORD PTR end_row$[rsp]
+OuterLoopStart:                                ; End proc if end_row greater or equal than y
+        mov     eax, DWORD PTR end_row$[rsp]  
         cmp     DWORD PTR y$3[rsp], eax
-        jge     OuterLoopEnd
-        mov     DWORD PTR x$2[rsp], 0
+        jge     OuterLoopEnd                 
+
+        mov     DWORD PTR x$2[rsp], 0  	        ; init x with 0, prepare start of inner loop
         jmp     InitVars
 InnerLoopStart:
         mov     eax, DWORD PTR x$2[rsp]
@@ -45,24 +51,25 @@ InnerLoopStart:
 InitVars:
         mov     eax, DWORD PTR width$[rsp]
         cmp     DWORD PTR x$2[rsp], eax
-        jge     JumpToOuterLoopStart
+        jge     JumpToOuterLoopIncrement
         mov     eax, DWORD PTR y$3[rsp]
         imul    eax, DWORD PTR width$[rsp]
         add     eax, DWORD PTR x$2[rsp]
         mov     DWORD PTR index$1[rsp], eax
         movsxd  rax, DWORD PTR index$1[rsp]
         mov     rcx, QWORD PTR input_image$[rsp]
+
+        ; Check treshold if greater than 128 set to 255 else 0
         movzx   eax, BYTE PTR [rcx+rax]
         mov     DWORD PTR old_pixel$5[rsp], eax
-        cmp     DWORD PTR old_pixel$5[rsp], 128         ; 00000080H
-        jge     SHORT $LN16@burkesDith
-        mov     DWORD PTR tv75[rsp], 0
-        jmp     SHORT $LN17@burkesDith
-$LN16@burkesDith:
-        mov     DWORD PTR tv75[rsp], 255      ; 000000ffH
-$LN17@burkesDith:
-        mov     eax, DWORD PTR tv75[rsp]
-        mov     DWORD PTR new_pixel$6[rsp], eax
+        cmp     DWORD PTR old_pixel$5[rsp], 128         
+        jge     setWhite
+        mov     DWORD PTR new_pixel$6[rsp], 0
+        jmp     continueAfterTresholding                             
+setWhite:
+        mov     DWORD PTR new_pixel$6[rsp], 255   
+        
+continueAfterTresholding:
         mov     eax, DWORD PTR new_pixel$6[rsp]
         mov     ecx, DWORD PTR old_pixel$5[rsp]
         sub     ecx, eax
@@ -73,10 +80,12 @@ $LN17@burkesDith:
         mov     rcx, QWORD PTR output_image$[rsp]
         movzx   edx, BYTE PTR new_pixel$6[rsp]
         mov     BYTE PTR [rcx+rax], dl
+
+skipDiffXp1:            ; Start error diffusion steps
         mov     eax, DWORD PTR width$[rsp]
         dec     eax
         cmp     DWORD PTR x$2[rsp], eax
-        jge     SHORT $LN8@burkesDith
+        jge     skipDiffXp2
         mov     eax, DWORD PTR index$1[rsp]
         inc     eax
         cdqe
@@ -91,11 +100,11 @@ $LN17@burkesDith:
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
-$LN8@burkesDith:
+skipDiffXp2:
         mov     eax, DWORD PTR width$[rsp]
         sub     eax, 2
         cmp     DWORD PTR x$2[rsp], eax
-        jge     SHORT $LN9@burkesDith
+        jge     skipDiffXm2H
         mov     eax, DWORD PTR index$1[rsp]
         add     eax, 2
         cdqe
@@ -110,13 +119,13 @@ $LN8@burkesDith:
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
-$LN9@burkesDith:
+skipDiffXm2H:
         cmp     DWORD PTR x$2[rsp], 1
-        jle     SHORT $LN10@burkesDith
+        jle     skipDiffXm1H
         mov     eax, DWORD PTR height$[rsp]
         dec     eax
         cmp     DWORD PTR y$3[rsp], eax
-        jge     SHORT $LN10@burkesDith
+        jge     skipDiffXm1H
         mov     eax, DWORD PTR index$1[rsp]
         mov     ecx, DWORD PTR width$[rsp]
         lea     eax, DWORD PTR [rax+rcx-2]
@@ -133,13 +142,13 @@ $LN9@burkesDith:
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
-$LN10@burkesDith:
+skipDiffXm1H:
         cmp     DWORD PTR x$2[rsp], 0
-        jle     SHORT $LN11@burkesDith
+        jle     skipDiffH
         mov     eax, DWORD PTR height$[rsp]
         dec     eax
         cmp     DWORD PTR y$3[rsp], eax
-        jge     SHORT $LN11@burkesDith
+        jge     skipDiffH
         mov     eax, DWORD PTR index$1[rsp]
         mov     ecx, DWORD PTR width$[rsp]
         lea     eax, DWORD PTR [rax+rcx-1]
@@ -156,11 +165,11 @@ $LN10@burkesDith:
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
-$LN11@burkesDith:
+skipDiffH:
         mov     eax, DWORD PTR height$[rsp]
         dec     eax
         cmp     DWORD PTR y$3[rsp], eax
-        jge     SHORT $LN12@burkesDith
+        jge     skipDiffXp1h
         mov     eax, DWORD PTR width$[rsp]
         mov     ecx, DWORD PTR index$1[rsp]
         add     ecx, eax
@@ -179,15 +188,15 @@ $LN11@burkesDith:
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
-$LN12@burkesDith:
+skipDiffXp1h:
         mov     eax, DWORD PTR width$[rsp]
         dec     eax
         cmp     DWORD PTR x$2[rsp], eax
-        jge     SHORT $LN13@burkesDith
+        jge     skipDiffXp2H
         mov     eax, DWORD PTR height$[rsp]
         dec     eax
         cmp     DWORD PTR y$3[rsp], eax
-        jge     SHORT $LN13@burkesDith
+        jge     skipDiffXp2H
         mov     eax, DWORD PTR index$1[rsp]
         mov     ecx, DWORD PTR width$[rsp]
         lea     eax, DWORD PTR [rax+rcx+1]
@@ -204,7 +213,7 @@ $LN12@burkesDith:
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
-$LN13@burkesDith:
+skipDiffXp2H:
         mov     eax, DWORD PTR width$[rsp]
         sub     eax, 2
         cmp     DWORD PTR x$2[rsp], eax
@@ -231,10 +240,10 @@ $LN13@burkesDith:
         mov     BYTE PTR [rdx+rcx], al
 JumpInnerLoopStart:
         jmp     InnerLoopStart
-JumpToOuterLoopStart:
-        jmp     OuterLoopStart
+JumpToOuterLoopIncrement:
+        jmp     OuterLoopIncrement
 OuterLoopEnd:
-        add     rsp, 40                             ; 00000028H
+        add     rsp, 40    ; Free stack
         ret     0
 burkesDitheringAsm ENDP
 END
