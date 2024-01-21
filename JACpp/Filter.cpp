@@ -10,7 +10,6 @@ extern "C" __declspec(dllexport) void burkesDitheringCpp(
     const int start_row,
     const int end_row)
 {
-
     for (int y = start_row; y < end_row; ++y) {
         for (int x = 0; x < width; ++x) {
 	        const int index = y * width + x;

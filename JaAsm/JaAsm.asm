@@ -20,7 +20,11 @@ start_row$ = 80
 end_row$ = 88
 
 ; Used registers
-; rax = index
+; r10 = width
+; r11 = height
+;
+;r14 = width
+;r15 = height
 
 .code
 burkesDitheringAsm proc     
@@ -30,7 +34,11 @@ burkesDitheringAsm proc
         mov     QWORD PTR tmp_pixel[rsp], rdx   ;not used to remove
         mov     QWORD PTR y$3[rsp], rcx 
         sub     rsp, 40                 ; Allocate stack for vars  
-        
+; Constants
+        mov     r10d, DWORD PTR width$[rsp]
+        mov     r11d, DWORD PTR height$[rsp]
+        ;mov     r11, QWORD PTR input_image$[rsp]
+
         mov     eax, DWORD PTR start_row$[rsp] ; Load the value at the memory location start_row$+rsp into eax
         mov     DWORD PTR y$3[rsp], eax        ; Store the value from eax into the y$3 variable on the stack
         jmp     OuterLoopStart 
@@ -51,11 +59,10 @@ InnerLoopIncrement:
         inc     eax
         mov     DWORD PTR x$2[rsp], eax
 InnerLoopStart:
-        mov     eax, DWORD PTR width$[rsp]
-        cmp     DWORD PTR x$2[rsp], eax
+        cmp     DWORD PTR x$2[rsp], r10d
         jge     JumpToOuterLoopIncrement            ;if x greater or equal than width jump to increment y
         mov     eax, DWORD PTR y$3[rsp]
-        imul    eax, DWORD PTR width$[rsp]          
+        imul    eax, r10d          
         add     eax, DWORD PTR x$2[rsp]             
         mov     DWORD PTR index$1[rsp], eax         ; Calculate index = y * width + x and store in index$1
         movsxd  rax, DWORD PTR index$1[rsp]         ; mov index to rax
@@ -83,7 +90,7 @@ continueAfterTresholding:
         mov     BYTE PTR [rcx+rax], dl            ; mov new_pixel to output_image[index]
 
 skipDiffXp1:;------------x < width - 1--------------; Start error diffusion steps
-        mov     eax, DWORD PTR width$[rsp]
+        mov     eax, r10d
         dec     eax
         cmp     DWORD PTR x$2[rsp], eax
         jge     skipDiffXp2
@@ -102,7 +109,7 @@ skipDiffXp1:;------------x < width - 1--------------; Start error diffusion step
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
 skipDiffXp2:;------------x < width - 2--------------;
-        mov     eax, DWORD PTR width$[rsp]
+        mov     eax, r10d
         sub     eax, 2
         cmp     DWORD PTR x$2[rsp], eax
         jge     skipDiffXm2H
@@ -128,8 +135,8 @@ skipDiffXm2H:;-------x > 1 && y < height - 1----------;
         cmp     DWORD PTR y$3[rsp], eax
         jge     skipDiffXm1H
         mov     eax, DWORD PTR index$1[rsp]
-        mov     ecx, DWORD PTR width$[rsp]
-        lea     eax, DWORD PTR [rax+rcx-2]
+
+        lea     eax, DWORD PTR [rax+r10-2]
         cdqe
         movss   xmm0, DWORD PTR sixteenth
         mulss   xmm0, DWORD PTR error$4[rsp]
@@ -138,8 +145,7 @@ skipDiffXm2H:;-------x > 1 && y < height - 1----------;
         movzx   eax, BYTE PTR [rdx+rax]
         add     eax, ecx
         mov     ecx, DWORD PTR index$1[rsp]
-        mov     edx, DWORD PTR width$[rsp]
-        lea     ecx, DWORD PTR [rcx+rdx-2]
+        lea     ecx, DWORD PTR [rcx+r10-2]
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
@@ -151,8 +157,7 @@ skipDiffXm1H:;-------x > 0 && y < height - 1----------;
         cmp     DWORD PTR y$3[rsp], eax
         jge     skipDiffH
         mov     eax, DWORD PTR index$1[rsp]
-        mov     ecx, DWORD PTR width$[rsp]
-        lea     eax, DWORD PTR [rax+rcx-1]
+        lea     eax, DWORD PTR [rax+r10-1]
         cdqe
         movss   xmm0, DWORD PTR eighth
         mulss   xmm0, DWORD PTR error$4[rsp]
@@ -161,8 +166,7 @@ skipDiffXm1H:;-------x > 0 && y < height - 1----------;
         movzx   eax, BYTE PTR [rdx+rax]
         add     eax, ecx
         mov     ecx, DWORD PTR index$1[rsp]
-        mov     edx, DWORD PTR width$[rsp]
-        lea     ecx, DWORD PTR [rcx+rdx-1]
+        lea     ecx, DWORD PTR [rcx+r10-1]
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
@@ -171,9 +175,8 @@ skipDiffH:;--------------y < height - 1---------------;
         dec     eax
         cmp     DWORD PTR y$3[rsp], eax
         jge     skipDiffXp1h
-        mov     eax, DWORD PTR width$[rsp]
         mov     ecx, DWORD PTR index$1[rsp]
-        add     ecx, eax
+        add     ecx, r10d
         mov     eax, ecx
         cdqe
         movss   xmm0, DWORD PTR quarter
@@ -182,15 +185,15 @@ skipDiffH:;--------------y < height - 1---------------;
         mov     rdx, QWORD PTR input_image$[rsp]
         movzx   eax, BYTE PTR [rdx+rax]
         add     eax, ecx
-        mov     ecx, DWORD PTR width$[rsp]
+
         mov     edx, DWORD PTR index$1[rsp]
-        add     edx, ecx
+        add     edx, r10d
         mov     ecx, edx
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
 skipDiffXp1h:;------x < width - 1 && y < height - 1------;
-        mov     eax, DWORD PTR width$[rsp]
+        mov     eax, r10d
         dec     eax
         cmp     DWORD PTR x$2[rsp], eax
         jge     skipDiffXp2H
@@ -199,8 +202,8 @@ skipDiffXp1h:;------x < width - 1 && y < height - 1------;
         cmp     DWORD PTR y$3[rsp], eax
         jge     skipDiffXp2H
         mov     eax, DWORD PTR index$1[rsp]
-        mov     ecx, DWORD PTR width$[rsp]
-        lea     eax, DWORD PTR [rax+rcx+1]
+
+        lea     eax, DWORD PTR [rax+r10+1]
         cdqe
         movss   xmm0, DWORD PTR eighth
         mulss   xmm0, DWORD PTR error$4[rsp]
@@ -209,13 +212,12 @@ skipDiffXp1h:;------x < width - 1 && y < height - 1------;
         movzx   eax, BYTE PTR [rdx+rax]
         add     eax, ecx
         mov     ecx, DWORD PTR index$1[rsp]
-        mov     edx, DWORD PTR width$[rsp]
-        lea     ecx, DWORD PTR [rcx+rdx+1]
+        lea     ecx, DWORD PTR [rcx+r10+1]
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
 skipDiffXp2H:;------x < width - 2 && y < height - 1------;
-        mov     eax, DWORD PTR width$[rsp]
+        mov     eax, r10d
         sub     eax, 2
         cmp     DWORD PTR x$2[rsp], eax
         jge     JumpInnerLoopStart
@@ -224,8 +226,7 @@ skipDiffXp2H:;------x < width - 2 && y < height - 1------;
         cmp     DWORD PTR y$3[rsp], eax
         jge     JumpInnerLoopStart
         mov     eax, DWORD PTR index$1[rsp]
-        mov     ecx, DWORD PTR width$[rsp]
-        lea     eax, DWORD PTR [rax+rcx+2]
+        lea     eax, DWORD PTR [rax+r10+2]
         cdqe
         movss   xmm0, DWORD PTR sixteenth
         mulss   xmm0, DWORD PTR error$4[rsp]
@@ -234,8 +235,7 @@ skipDiffXp2H:;------x < width - 2 && y < height - 1------;
         movzx   eax, BYTE PTR [rdx+rax]
         add     eax, ecx
         mov     ecx, DWORD PTR index$1[rsp]
-        mov     edx, DWORD PTR width$[rsp]
-        lea     ecx, DWORD PTR [rcx+rdx+2]
+        lea     ecx, DWORD PTR [rcx+r10+2]
         movsxd  rcx, ecx
         mov     rdx, QWORD PTR input_image$[rsp]
         mov     BYTE PTR [rdx+rcx], al
