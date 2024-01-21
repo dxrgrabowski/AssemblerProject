@@ -36,7 +36,7 @@ namespace AssemblerProject
         public void LoadBitmap(Bitmap bitmap)
         {
             bitmapSize = bitmap.Width * bitmap.Height * 3;
-            loadedBitmap = new Bitmap(bitmap);// ConvertToGrayscaleFast(bitmap);
+            loadedBitmap = new Bitmap(bitmap);
         }
 
         public Bitmap startProcessingImage(DllType dllType, int numberOfThreads)
@@ -50,15 +50,10 @@ namespace AssemblerProject
             switch (dllType)
             {
                 case DllType.CPP:
-                    stopwatch.Start();
                     ProcessUsingCpp(loadedBitmap, result);
-                    stopwatch.Stop();
-                    System.Console.WriteLine("Cpp time: " + stopwatch.Elapsed.TotalMilliseconds);
                     break;
-                case DllType.ASM:
-                    stopwatch.Start();
+                case DllType.ASM:    
                     ProcessUsingAsm(loadedBitmap, result);
-                    stopwatch.Stop();
                     break;
             }
            
@@ -72,21 +67,21 @@ namespace AssemblerProject
 
         private void ProcessUsingCpp(Bitmap inputBitmap, Bitmap outputBitmap)
         {
-            BitmapData inputData = inputBitmap.LockBits(new Rectangle(0, 0, inputBitmap.Width, inputBitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format8bppIndexed);
-            
+            Bitmap inputCopy = new Bitmap(inputBitmap);
+
+            BitmapData inputData = inputCopy.LockBits(new Rectangle(0, 0, inputCopy.Width, inputCopy.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+
             BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
-            int height = inputBitmap.Height;
-            int width = inputBitmap.Width;
+            int height = inputCopy.Height;
+            int width = inputCopy.Width;
 
-            // Calculate the number of rows each thread will process
             int rowsPerThread = height / numberOfSegments;
 
-            // Create an array to hold threads
             List<Task> tasks = new();
 
             IntPtr inputPtr, outputPtr;
-
+            stopwatch.Start();
             unsafe
             {
                 inputPtr = inputData.Scan0;
@@ -105,26 +100,28 @@ namespace AssemblerProject
             }
 
             Task.WaitAll(tasks.ToArray());
-
-            inputBitmap.UnlockBits(inputData);
+            stopwatch.Stop();
+            inputCopy.UnlockBits(inputData);
             outputBitmap.UnlockBits(outputData);
         }
         
         private void ProcessUsingAsm(Bitmap inputBitmap, Bitmap outputBitmap)
         {
-            BitmapData inputData = inputBitmap.LockBits(new Rectangle(0, 0, inputBitmap.Width, inputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
-            
+            Bitmap inputCopy = new Bitmap(inputBitmap);
+
+            BitmapData inputData = inputCopy.LockBits(new Rectangle(0, 0, inputCopy.Width, inputCopy.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+
             BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
-            int height = inputBitmap.Height;
-            int width = inputBitmap.Width;
+            int height = inputCopy.Height;
+            int width = inputCopy.Width;
 
             int rowsPerThread = height / numberOfSegments;
 
             List<Task> tasks = new();
 
             IntPtr inputPtr, outputPtr;
-
+            stopwatch.Start();
             unsafe
             {
                 inputPtr = inputData.Scan0;
@@ -143,8 +140,8 @@ namespace AssemblerProject
             }
 
             Task.WaitAll(tasks.ToArray());
-
-            inputBitmap.UnlockBits(inputData);
+            stopwatch.Stop();
+            inputCopy.UnlockBits(inputData);
             outputBitmap.UnlockBits(outputData);
         }
 
