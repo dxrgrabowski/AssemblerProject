@@ -3,24 +3,11 @@
   eighth DD 0.125      
   sixteenth DD 0.0625  
 
-;Init used vars to be pushed on stack, initialized at start with 0, backup for registers
-index$ = 0
-x$ = 4 ;not used to remove
-y$ = 8    ;not used to remove
-error$ = 12
-tmp_pixel = 16  ;not used to remove
-old_pixel$ = 20
-new_pixel$ = 24
-input_image$ = 48 ; not used to remove
-output_image$ = 56 ; not used to remove
-width$ = 64 ;   not used to remove
-height$ = 72 ; not used to remove
-start_row$ = 80
-end_row$ = 88
-
 ; Used registers
+
 ; xmm1 = error
 
+; rsi = end_row
 ; rbx = output_image
 ; r8 = new_pixel
 ; r9 = old_pixel
@@ -32,30 +19,22 @@ end_row$ = 88
 ; r15 = input_image
 
 .code
-burkesDitheringAsm proc     
-        mov     DWORD PTR [rsp+32], r9d 
-        mov     DWORD PTR new_pixel$[rsp], r8d
-        mov     QWORD PTR tmp_pixel[rsp], rdx       ;not used to remove
-        mov     QWORD PTR y$[rsp], rcx 
-        sub     rsp, 40                             ; Allocate stack for vars  
-; Constants
+burkesDitheringAsm proc  
 
-        mov     r10d, DWORD PTR width$[rsp]
-        mov     r11d, DWORD PTR height$[rsp]
-        mov     r12d, DWORD PTR index$[rsp]
-        mov     r13d, DWORD PTR x$[rsp]
-        mov     r14d, DWORD PTR y$[rsp]
-        mov     r15,  QWORD PTR input_image$[rsp]
-        mov     rbx,  QWORD PTR output_image$[rsp]
+	    mov     r15, rcx
+        mov     rbx, rdx
+        mov     r10d, r8d
+        mov     r11d, r9d
+        mov     r14d, [rsp + 40]                    ; Load the value at the memory location start_row$+rsp into r14b
+        mov	    rsi, [rsp + 48]
 
-        mov     r14d, DWORD PTR start_row$[rsp]     ; Load the value at the memory location start_row$+rsp into r14b
         jmp     OuterLoopStart 
 
 OuterLoopIncrement:;--------------------------------; Hack to increment y, but not in first iteration	
         inc     r14d
 
 OuterLoopStart:;------------------------------------; End proc if end_row greater or equal than y
-        mov     eax, DWORD PTR end_row$[rsp]  
+        mov     eax, esi  
         cmp     r14d, eax
         jge     OuterLoopEnd                 
 
@@ -70,7 +49,7 @@ InnerLoopStart:
         mov     eax, r14d
         imul    eax, r10d          
         add     eax, r13d             
-        mov     r12d, eax                           ; Calculate index = y * width + x and store in index$        
+        mov     r12d, eax                           ; Calculate index = y * width + x and store in index        
                                                     ; Check treshold if greater than 128 set to 255 else 0
         movzx   eax, BYTE PTR [r15+r12]             ; Load pixel from input_image[index] into eax
         mov     r9d, eax
@@ -223,7 +202,6 @@ skipDiffXp2H:;---x < width - 2 && y < height - 1----;
 JumpInnerLoopInc:
         jmp     InnerLoopIncrement
 OuterLoopEnd:
-        add     rsp, 40                             ; Free stack
         ret     0
 burkesDitheringAsm ENDP
 END
