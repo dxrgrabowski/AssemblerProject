@@ -60,45 +60,42 @@ namespace AssemblerProject
         private void ProcessImage(Bitmap inputBitmap, Bitmap outputBitmap, DllType dllType)
         {
             Bitmap inputCopy = new Bitmap(inputBitmap);
-
-            BitmapData inputData = inputCopy.LockBits(new Rectangle(0, 0, inputCopy.Width, inputCopy.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
-
-            BitmapData outputData = outputBitmap.LockBits(new Rectangle(0, 0, outputBitmap.Width, outputBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+            BitmapData inputData = inputCopy.LockBits(new Rectangle(
+                0, 0, inputCopy.Width, inputCopy.Height), 
+                ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+            BitmapData outputData = outputBitmap.LockBits(new Rectangle(
+                0, 0, outputBitmap.Width, outputBitmap.Height), 
+                ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
 
             int height = inputCopy.Height;
             int width = inputCopy.Width;
-
             int rowsPerThread = height / numberOfSegments;
-
             List<Task> tasks = new();
 
             IntPtr inputPtr, outputPtr;
             stopwatch.Start();
-            unsafe
-            {
-                inputPtr = inputData.Scan0;
-                outputPtr = outputData.Scan0;
-            }
+            unsafe { inputPtr = inputData.Scan0; outputPtr = outputData.Scan0; }
 
             for (int i = 0; i < numberOfSegments; i++)
             {
                 int startRow = i * rowsPerThread;
-                int endRow = (i == numberOfSegments - 1) ? height : (i + 1) * rowsPerThread;
-
+                int endRow = (i == numberOfSegments - 1) ? 
+                    height : (i + 1) * rowsPerThread;
                 tasks.Add(Task.Run(() =>
                 {
                     switch (dllType)
                     {
                         case DllType.CPP:
-                            burkesDitheringCpp(inputPtr, outputPtr, width, height, startRow, endRow);
+                            burkesDitheringCpp(inputPtr, outputPtr, 
+                                width, height, startRow, endRow);
                             break;
                         case DllType.ASM:
-                            burkesDitheringAsm(inputPtr, outputPtr, width, height, startRow, endRow);
+                            burkesDitheringAsm(inputPtr, outputPtr, 
+                                width, height, startRow, endRow);
                             break;
                     }
                 }));
             }
-
             Task.WaitAll(tasks.ToArray());
             stopwatch.Stop();
             inputCopy.UnlockBits(inputData);

@@ -4,9 +4,7 @@
   sixteenth DD 0.0625  
 
 ; Used registers
-
 ; xmm1 = error
-
 ; rsi = end_row
 ; rbx = output_image
 ; r8 = new_pixel
@@ -66,7 +64,7 @@ continueAfterTresholding:
         sub     ecx, eax                            ; Calculate error by old_pixel - new_pixel
         cvtsi2ss xmm1, ecx                          ; CRUCIAL Convert error to float with xmm0 for further float calculations
         mov     rcx, rbx                            
-        mov     BYTE PTR [rcx+r12], r8b              ; mov new_pixel(r8) to output_image[index(r12)](rbx)
+        mov     BYTE PTR [rcx+r12], r8b             ; mov new_pixel(r8) to output_image[index(r12)](rbx)
 
 skipDiffXp1:;------------x < width - 1--------------; Start error diffusion steps
         mov     eax, r10d                           ;

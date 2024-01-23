@@ -1,8 +1,7 @@
 #include "pch.h"
 #include "Filter.h"
 
-
-extern "C" __declspec(dllexport) void burkesDitheringCpp(
+void burkesDitheringCpp(
     unsigned char* input_image,
     unsigned char* output_image,
     const int width,
@@ -14,7 +13,7 @@ extern "C" __declspec(dllexport) void burkesDitheringCpp(
         for (int x = 0; x < width; ++x) {
 	        const int index = y * width + x;
 	        const int old_pixel = input_image[index];
-	        const int new_pixel = (old_pixel < 128) ? 0 : 255; // Thresholding
+	        const int new_pixel = (old_pixel < 128) ? 0 : 255;
 	        const int error = old_pixel - new_pixel;
 
         	output_image[index] = new_pixel;
