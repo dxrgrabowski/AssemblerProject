@@ -12,10 +12,10 @@ namespace AssemblerProject
     public enum DllType {CPP, ASM}
     public class ProcessingManager
     {
-        [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JAAsm.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(@"C:\Users\windo\Downloads\JA\x64\Release\JaAsm.dll", CallingConvention = CallingConvention.Cdecl)]
         static extern void burkesDitheringAsm(IntPtr inputImage, IntPtr outputImage, int width, int height, int startRow, int endRow);
 
-        [DllImport(@"D:\Studia\Projects\AssemblerProject\x64\Debug\JACpp.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(@"C:\Users\windo\Downloads\JA\x64\Release\JACpp.dll", CallingConvention = CallingConvention.Cdecl)]
         static extern void burkesDitheringCpp(IntPtr inputImage, IntPtr outputImage, int width, int height, int startRow, int endRow);
         public double currentExecutionMs { get; private set; }
         public double previousExecutionMs { get; private set; }
